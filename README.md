@@ -1,6 +1,6 @@
 # Fake Shell
 
-~[Screenshot](https://raw.githubusercontent.com/blukatstudios/FakeShell/master/screenshot.png)
+![Screenshot](https://raw.githubusercontent.com/blukatstudios/FakeShell/master/screenshot.png)
 
 Yup, it's a fake unix shell with a few basic commands provided.
 Compile it with mcs or whatever official microsoft compiler is available,
