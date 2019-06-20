@@ -43,11 +43,31 @@ public class FakeShell {
   }
 
   public void HandleInput(string inputLine){
-    ExecuteCommand(inputLine);
+    string[] commands = inputLine.Split(new Char [] {'>' , '|' });
+    if(commands == null || commands.Length == 0){
+      Console.Write("Not sure how, but 0 commands were parsed.");
+    }
+    if(commands.Length == 1){
+      ExecuteCommand(inputLine);
+      return;
+    }
+
+    outputMode = 2;
+
+    Console.Write("Congratulations! You used a pipe or carrot.\n");
+    
+    outputMode = 1; 
   }
 
   public void ExecuteCommand(string inputLine){
     string[] args = inputLine.Split(' ');
+    if(outputMode == 2 && stdout != null && stdout.Count > 0){
+      List<string> tmp = new List<string>();
+      tmp.AddRange(args);
+      tmp.AddRange(stdout);
+      stdout = new List<string>();
+      args = tmp.ToArray();
+    }
     if(args.Length == 0 || args[0] == ""){
       return;
     }
@@ -311,6 +331,7 @@ public class FakeShell {
     return path;
   }
 
+  // Populate STDOUT buffer
   public void STDOUT(string message){
     if(stdout == null){
       stdout = new List<string>();
