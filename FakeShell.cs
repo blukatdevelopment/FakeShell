@@ -61,6 +61,9 @@ public class FakeShell {
 
   public void ExecuteCommand(string inputLine){
     string[] args = inputLine.Split(' ');
+    if(outputMode == 1 && QuotesParse(inputLine) != ""){
+      args[1] = QuotesParse(inputLine);
+    }
     if(outputMode == 2 && stdout != null && stdout.Count > 0){
       List<string> tmp = new List<string>();
       tmp.AddRange(args);
@@ -71,6 +74,7 @@ public class FakeShell {
     if(args.Length == 0 || args[0] == ""){
       return;
     }
+    
     switch(args[0].ToLower()){
       case "clear":
         CLEAR(args);
@@ -98,6 +102,9 @@ public class FakeShell {
       break;
       case "cat":
         CAT(args);
+      break;
+      case "echo":
+        ECHO(args);
       break;
       default:
         Output(args[0] + ": command not found");
@@ -229,6 +236,16 @@ public class FakeShell {
     Output(file[2]);
   }
 
+  public void ECHO(string[] args){
+    string output = "";
+    
+    if(args.Length > 1){
+      output = args[1];
+    }
+
+    Output(output);
+  }
+
   public void Exit(string[] args){
     running = false;
   }
@@ -261,6 +278,14 @@ public class FakeShell {
   //################################################
   //      Helper methods
   //################################################
+
+  public string QuotesParse(string fullLine){
+    string[] quotesSplit = fullLine.Split('"');
+    if(quotesSplit.Length > 2){
+      return quotesSplit[1];
+    }
+    return "";
+  }
 
   public List<string[]> FilesInDir(string path){
     List<string[]> ret = new List<string[]>();
