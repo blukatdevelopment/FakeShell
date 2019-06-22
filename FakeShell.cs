@@ -59,17 +59,20 @@ public class FakeShell {
     for(int i = 0; i < commands.Length; i++){
       string command = commands[i];
       if(command[command.Length-1] == '>'){
-        //Console.Write("Command used a carrot\n");
         ExecuteCommand(command);
       }
       else if(command[command.Length-1] == '|'){
-        //Console.Write("Command used a pipe\n");
         ExecuteCommand(command);
       }
       else{
-        //Console.Write("Last command executed " + command + "\n");
-        ExecuteCommand(command);
-        FlushStdout();
+        string lastCommand = commands[i-1];
+        if(lastCommand[lastCommand.Length-1] == '|'){
+          ExecuteCommand(command);
+          FlushStdout();
+        }
+        else if(lastCommand[lastCommand.Length-1] == '>'){
+          WriteStdoutToFile(command);
+        }
       }
     }
     
@@ -77,19 +80,10 @@ public class FakeShell {
   }
 
   public void ExecuteCommand(string inputLine){
-    List<string> tmp;
-    string[] args = inputLine.Split(' ');
-    if(args[0] == ""){
-      tmp = new List<string>(args);
-      tmp.RemoveAt(0);
-      args = tmp.ToArray(); 
-    }
+    string[] args = ParseArgs(inputLine);
 
-    if(outputMode == 1 && QuotesParse(inputLine) != ""){
-      args[1] = QuotesParse(inputLine);
-    }
     if(outputMode == 2 && stdout != null && stdout.Count > 0){
-      tmp = new List<string>();
+      List<string> tmp = new List<string>();
       tmp.AddRange(args);
       tmp.AddRange(stdout);
       stdout = new List<string>();
@@ -266,7 +260,7 @@ public class FakeShell {
     if(args.Length > 1){
       output = args[1];
     }
-    
+
     Output(output);
   }
 
@@ -304,6 +298,29 @@ public class FakeShell {
       Console.Write(line + "\n");
     }
     stdout = new List<string>();
+  }
+
+  public void WriteStdoutToFile(string file){
+    string data = String.Join("\n", stdout);
+    data = data.Replace(@"\\n", "\n");
+
+    stdout = new List<string>();
+
+    file = file.Replace(" ", "");
+    string filePath = EvaluatePath(file);
+
+    if(FileIndex(filePath, true) != -1){
+      Console.Write("Cannot write to directory\n");
+      return;
+    }
+    TOUCH(new string[]{ "touch", filePath });
+    int index = FileIndex(filePath);
+    
+    if(index == -1){
+      Console.Write("Failed to locate new file\n" );
+      return;
+    }
+    fakeFiles[index][2] = data;
   }
 
   //################################################
@@ -411,5 +428,35 @@ public class FakeShell {
       return path;
     }
     return workingDirectory + path;
+  }
+
+  public string[] ParseArgs(string line){
+    List<string> args = new List<string>();
+    bool quoteWrap = false;
+    for(int i = 0; i < line.Length; i++){
+      if(i != 0 && !quoteWrap && line[i] == ' '){
+        args.Add(line.Substring(0, i));
+        line = line.Substring(i+1);
+        i = -1;
+      }
+      else if(!quoteWrap && line[i] == '"'){
+        line = line.Substring(i+1);
+        i = -1;
+        quoteWrap = true;
+      }
+      else if(quoteWrap && line[i] == '"'){
+        args.Add(line.Substring(0, i));
+        line = line.Substring(i+1);
+        i = -1;
+        quoteWrap = false;
+      }
+    }
+
+    // Not supporting multiline commands in shell
+    if(line.Length > 0){
+      args.Add(line);
+    }
+
+    return args.ToArray();
   }
 }
