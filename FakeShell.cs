@@ -12,6 +12,7 @@
 */
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 public class FakeShell {
   public bool running;
@@ -43,7 +44,8 @@ public class FakeShell {
   }
 
   public void HandleInput(string inputLine){
-    string[] commands = inputLine.Split(new Char [] {'>' , '|' });
+    string[] commands;// = inputLine.Split(new Char [] {'>' , '|' });
+    commands = Regex.Split(inputLine, @"(?<=[>|])");
     if(commands == null || commands.Length == 0){
       Console.Write("Not sure how, but 0 commands were parsed.");
     }
@@ -54,18 +56,40 @@ public class FakeShell {
 
     outputMode = 2;
 
-    Console.Write("Congratulations! You used a pipe or carrot.\n");
+    for(int i = 0; i < commands.Length; i++){
+      string command = commands[i];
+      if(command[command.Length-1] == '>'){
+        //Console.Write("Command used a carrot\n");
+        ExecuteCommand(command);
+      }
+      else if(command[command.Length-1] == '|'){
+        //Console.Write("Command used a pipe\n");
+        ExecuteCommand(command);
+      }
+      else{
+        //Console.Write("Last command executed " + command + "\n");
+        ExecuteCommand(command);
+        FlushStdout();
+      }
+    }
     
     outputMode = 1; 
   }
 
   public void ExecuteCommand(string inputLine){
+    List<string> tmp;
     string[] args = inputLine.Split(' ');
+    if(args[0] == ""){
+      tmp = new List<string>(args);
+      tmp.RemoveAt(0);
+      args = tmp.ToArray(); 
+    }
+
     if(outputMode == 1 && QuotesParse(inputLine) != ""){
       args[1] = QuotesParse(inputLine);
     }
     if(outputMode == 2 && stdout != null && stdout.Count > 0){
-      List<string> tmp = new List<string>();
+      tmp = new List<string>();
       tmp.AddRange(args);
       tmp.AddRange(stdout);
       stdout = new List<string>();
@@ -238,11 +262,11 @@ public class FakeShell {
 
   public void ECHO(string[] args){
     string output = "";
-    
+
     if(args.Length > 1){
       output = args[1];
     }
-
+    
     Output(output);
   }
 
@@ -273,6 +297,13 @@ public class FakeShell {
     else if(outputMode == 2){
       STDOUT(message);
     }
+  }
+
+  public void FlushStdout(){
+    foreach(string line in stdout){
+      Console.Write(line + "\n");
+    }
+    stdout = new List<string>();
   }
 
   //################################################
