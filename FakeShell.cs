@@ -124,6 +124,9 @@ public class FakeShell {
       case "echo":
         ECHO(args);
       break;
+      case "grep":
+        GREP(args);
+      break;
       default:
         Output(args[0] + ": command not found");
       break;
@@ -268,6 +271,38 @@ public class FakeShell {
     running = false;
   }
 
+  public void GREP(string[] args){
+    if(args.Length < 3){
+      Output("Usage: grep PATTERN [FILE]...");
+      return;
+    }
+    Regex rgx = new Regex(args[1]);
+    if(args.Length == 3 || ( args.Length == 4 && (args[3] == ">" || args[3] == "|"))){
+      string data = GetFileData(args[2]);
+
+      if(data == "DIR"){
+        Output("grep: " + args[2] + ": Is a directory");
+        return;
+      }
+
+      if(data != null){
+        string[] lines = data.Split('\n');
+        for(int i = 0; i < lines.Length; i++){
+          if(rgx.IsMatch(lines[i])){
+            Output(lines[i]);
+          }
+        }
+        return;
+      }
+    }
+    
+    for(int i = 2; i < args.Length; i++){
+      if(rgx.IsMatch(args[i])){
+        Output(args[i]);
+      }
+    }
+  }
+
   //################################################
   //      Change these if you want to swap out
   //      console i/o for something else
@@ -302,7 +337,7 @@ public class FakeShell {
 
   public void WriteStdoutToFile(string file){
     string data = String.Join("\n", stdout);
-    data = data.Replace(@"\\n", "\n");
+    data = data.Replace(@"\n", "\n");
 
     stdout = new List<string>();
 
@@ -458,5 +493,14 @@ public class FakeShell {
     }
 
     return args.ToArray();
+  }
+
+  public string GetFileData(string file){
+    string filePath = EvaluatePath(file);
+    int fileIndex = FileIndex(filePath);
+    if(fileIndex == -1){
+      return null;
+    }
+    return fakeFiles[fileIndex][2];
   }
 }
