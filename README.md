@@ -20,7 +20,9 @@ This was made mostly out of curiosity, but should be portable enough to plug int
 - touch
 - mkdir
 - cat
+- echo
+- grep
 
 ## Development
 
-Piping fake stdout into other programs isn't implemented currently, but can be by setting outputMode to pipe before running a command, then feeding stdout into the next program and so forth. I might get around to that, but this was made on a whim, so perhaps not.
+With the implementation of piping, this tiny project is finished.
