@@ -12,6 +12,7 @@
 */
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 public class FakeShell {
   public bool running;
@@ -26,31 +27,70 @@ public class FakeShell {
   public List<string> stdout, stdin;
   public int outputMode; // 1 = console, 2 = pipe
 
-  public FakeShell(){
-    computer = "badguyterminal";
-    user = "elitehaxxorprotagonist";
+  public FakeShell(
+    string computer,
+    string user,
+    List<string[]> fakeFiles
+  ){
+    this.computer = computer;
+    this.user = user;
+    this.fakeFiles = fakeFiles;
 
-    outputMode = 1;
-    Output("Last login: Tue Jan 12 22:29:30 2079");
-    running = true;
-    fakeFiles = new List<string[]>{
-      new string[]{"","/", "DIR"},
-      new string[]{"/","home", "DIR"},
-      new string[]{"/","usr", "DIR"},
-      new string[]{"/usr/","secretformula.txt", "It's plankton!"}
-    };
     workingDirectory = FullFilePath(fakeFiles[0]);
+    outputMode = 1;
+    running = true;
   }
 
   public void HandleInput(string inputLine){
-    ExecuteCommand(inputLine);
+    string[] commands;// = inputLine.Split(new Char [] {'>' , '|' });
+    commands = Regex.Split(inputLine, @"(?<=[>|])");
+    if(commands == null || commands.Length == 0){
+      Console.Write("Not sure how, but 0 commands were parsed.");
+    }
+    if(commands.Length == 1){
+      ExecuteCommand(inputLine);
+      return;
+    }
+
+    outputMode = 2;
+
+    for(int i = 0; i < commands.Length; i++){
+      string command = commands[i];
+      if(command[command.Length-1] == '>'){
+        ExecuteCommand(command);
+      }
+      else if(command[command.Length-1] == '|'){
+        ExecuteCommand(command);
+      }
+      else{
+        string lastCommand = commands[i-1];
+        if(lastCommand[lastCommand.Length-1] == '|'){
+          ExecuteCommand(command);
+          FlushStdout();
+        }
+        else if(lastCommand[lastCommand.Length-1] == '>'){
+          WriteStdoutToFile(command);
+        }
+      }
+    }
+    
+    outputMode = 1; 
   }
 
   public void ExecuteCommand(string inputLine){
-    string[] args = inputLine.Split(' ');
+    string[] args = ParseArgs(inputLine);
+
+    if(outputMode == 2 && stdout != null && stdout.Count > 0){
+      List<string> tmp = new List<string>();
+      tmp.AddRange(args);
+      tmp.AddRange(stdout);
+      stdout = new List<string>();
+      args = tmp.ToArray();
+    }
     if(args.Length == 0 || args[0] == ""){
       return;
     }
+    
     switch(args[0].ToLower()){
       case "clear":
         CLEAR(args);
@@ -78,6 +118,12 @@ public class FakeShell {
       break;
       case "cat":
         CAT(args);
+      break;
+      case "echo":
+        ECHO(args);
+      break;
+      case "grep":
+        GREP(args);
       break;
       default:
         Output(args[0] + ": command not found");
@@ -209,8 +255,50 @@ public class FakeShell {
     Output(file[2]);
   }
 
+  public void ECHO(string[] args){
+    string output = "";
+
+    if(args.Length > 1){
+      output = args[1];
+    }
+
+    Output(output);
+  }
+
   public void Exit(string[] args){
     running = false;
+  }
+
+  public void GREP(string[] args){
+    if(args.Length < 3){
+      Output("Usage: grep PATTERN [FILE]...");
+      return;
+    }
+    Regex rgx = new Regex(args[1]);
+    if(args.Length == 3 || ( args.Length == 4 && (args[3] == ">" || args[3] == "|"))){
+      string data = GetFileData(args[2]);
+
+      if(data == "DIR"){
+        Output("grep: " + args[2] + ": Is a directory");
+        return;
+      }
+
+      if(data != null){
+        string[] lines = data.Split('\n');
+        for(int i = 0; i < lines.Length; i++){
+          if(rgx.IsMatch(lines[i])){
+            Output(lines[i]);
+          }
+        }
+        return;
+      }
+    }
+    
+    for(int i = 2; i < args.Length; i++){
+      if(rgx.IsMatch(args[i])){
+        Output(args[i]);
+      }
+    }
   }
 
   //################################################
@@ -219,7 +307,16 @@ public class FakeShell {
   //################################################
 
   public static void Main(string[] args){
-    FakeShell shell = new FakeShell();
+    FakeShell shell = new FakeShell(
+        "badguyterminal",
+        "haxxor",
+        new List<string[]>{
+          new string[]{"","/", "DIR"},
+          new string[]{"/","home", "DIR"},
+          new string[]{"/","usr", "DIR"},
+          new string[]{"/usr/","locker_combo.txt", "12345"}
+        }
+      );
     while(shell.Running()){
       shell.HandleInput(Console.ReadLine());
     }
@@ -238,9 +335,47 @@ public class FakeShell {
     }
   }
 
+  public void FlushStdout(){
+    foreach(string line in stdout){
+      Console.Write(line + "\n");
+    }
+    stdout = new List<string>();
+  }
+
+  public void WriteStdoutToFile(string file){
+    string data = String.Join("\n", stdout);
+    data = data.Replace(@"\n", "\n");
+
+    stdout = new List<string>();
+
+    file = file.Replace(" ", "");
+    string filePath = EvaluatePath(file);
+
+    if(FileIndex(filePath, true) != -1){
+      Console.Write("Cannot write to directory\n");
+      return;
+    }
+    TOUCH(new string[]{ "touch", filePath });
+    int index = FileIndex(filePath);
+    
+    if(index == -1){
+      Console.Write("Failed to locate new file\n" );
+      return;
+    }
+    fakeFiles[index][2] = data;
+  }
+
   //################################################
   //      Helper methods
   //################################################
+
+  public string QuotesParse(string fullLine){
+    string[] quotesSplit = fullLine.Split('"');
+    if(quotesSplit.Length > 2){
+      return quotesSplit[1];
+    }
+    return "";
+  }
 
   public List<string[]> FilesInDir(string path){
     List<string[]> ret = new List<string[]>();
@@ -311,6 +446,7 @@ public class FakeShell {
     return path;
   }
 
+  // Populate STDOUT buffer
   public void STDOUT(string message){
     if(stdout == null){
       stdout = new List<string>();
@@ -334,5 +470,44 @@ public class FakeShell {
       return path;
     }
     return workingDirectory + path;
+  }
+
+  public string[] ParseArgs(string line){
+    List<string> args = new List<string>();
+    bool quoteWrap = false;
+    for(int i = 0; i < line.Length; i++){
+      if(i != 0 && !quoteWrap && line[i] == ' '){
+        args.Add(line.Substring(0, i));
+        line = line.Substring(i+1);
+        i = -1;
+      }
+      else if(!quoteWrap && line[i] == '"'){
+        line = line.Substring(i+1);
+        i = -1;
+        quoteWrap = true;
+      }
+      else if(quoteWrap && line[i] == '"'){
+        args.Add(line.Substring(0, i));
+        line = line.Substring(i+1);
+        i = -1;
+        quoteWrap = false;
+      }
+    }
+
+    // Not supporting multiline commands in shell
+    if(line.Length > 0){
+      args.Add(line);
+    }
+
+    return args.ToArray();
+  }
+
+  public string GetFileData(string file){
+    string filePath = EvaluatePath(file);
+    int fileIndex = FileIndex(filePath);
+    if(fileIndex == -1){
+      return null;
+    }
+    return fakeFiles[fileIndex][2];
   }
 }
