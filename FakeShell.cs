@@ -27,20 +27,18 @@ public class FakeShell {
   public List<string> stdout, stdin;
   public int outputMode; // 1 = console, 2 = pipe
 
-  public FakeShell(){
-    computer = "badguyterminal";
-    user = "elitehaxxorprotagonist";
+  public FakeShell(
+    string computer,
+    string user,
+    List<string[]> fakeFiles
+  ){
+    this.computer = computer;
+    this.user = user;
+    this.fakeFiles = fakeFiles;
 
-    outputMode = 1;
-    Output("Last login: Tue Jan 12 22:29:30 2079");
-    running = true;
-    fakeFiles = new List<string[]>{
-      new string[]{"","/", "DIR"},
-      new string[]{"/","home", "DIR"},
-      new string[]{"/","usr", "DIR"},
-      new string[]{"/usr/","secretformula.txt", "It's plankton!"}
-    };
     workingDirectory = FullFilePath(fakeFiles[0]);
+    outputMode = 1;
+    running = true;
   }
 
   public void HandleInput(string inputLine){
@@ -309,7 +307,16 @@ public class FakeShell {
   //################################################
 
   public static void Main(string[] args){
-    FakeShell shell = new FakeShell();
+    FakeShell shell = new FakeShell(
+        "badguyterminal",
+        "haxxor",
+        new List<string[]>{
+          new string[]{"","/", "DIR"},
+          new string[]{"/","home", "DIR"},
+          new string[]{"/","usr", "DIR"},
+          new string[]{"/usr/","locker_combo.txt", "12345"}
+        }
+      );
     while(shell.Running()){
       shell.HandleInput(Console.ReadLine());
     }
