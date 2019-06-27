@@ -28,16 +28,19 @@ public class FakeShell {
   public int outputMode; // 1 = console, 2 = pipe
 
   public FakeShell(
+    string lastLogin,
     string computer,
     string user,
     List<string[]> fakeFiles
   ){
+    outputMode = 1;
+    Output("Last login: " + lastLogin);
+
     this.computer = computer;
     this.user = user;
     this.fakeFiles = fakeFiles;
 
     workingDirectory = FullFilePath(fakeFiles[0]);
-    outputMode = 1;
     running = true;
   }
 
@@ -308,6 +311,7 @@ public class FakeShell {
 
   public static void Main(string[] args){
     FakeShell shell = new FakeShell(
+        "Tue Jan 12 22:29:30 2077",
         "badguyterminal",
         "haxxor",
         new List<string[]>{
